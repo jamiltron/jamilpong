@@ -1,5 +1,6 @@
 import pygame
 from pygame.locals import *
+pygame.init()
 
 WIDTH = 640
 HEIGHT = 480
@@ -12,6 +13,18 @@ PADDLE_CLR = (255, 255, 255)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
+class Label(pygame.sprite.Sprite):
+    def __init__(self, x_pos, y_pos, text=""):
+        pygame.sprite.Sprite.__init__(self)
+        self.font = pygame.font.SysFont("None", 30)
+        self.text = text
+        self.center = (x_pos, y_pos)
+
+    def update(self):
+        self.image = self.font.render(self.text, 1, (255, 255, 255))
+        self.rect = self.image.get_rect()
+        self.rect.center = self.center
+
 class Ball(pygame.sprite.Sprite):
     def __init__(self, x_pos=320, y_pos=240):
         pygame.sprite.Sprite.__init__(self)
@@ -22,24 +35,37 @@ class Ball(pygame.sprite.Sprite):
         self.rect.centerx = x_pos
         self.rect.centery = y_pos
         self.speed = 8
-        self.dx = -8
+        self.dx = -self.speed
+        self.dy = 0
+
+    def reset(self):
+        self.rect.centerx = 320
+        self.rect.centery = 240
+        self.speed = 8
+        self.dx = -self.speed
         self.dy = 0
 
     def update(self, other_sprites):
+        # update the ball's speed, in the appropriate direction
         if self.dx < 0:
             self.dx = -self.speed
         else:
             self.dx = self.speed
+
+        # update the ball's position
         self.rect.centerx += self.dx
         self.rect.centery += self.dy
         
+        # if the ball hits the top of the screen, bounce it
         if self.rect.top < 0:
             self.rect.top = 0
             self.dy = self.dy * -1
+        # if the ball hits the bottom of the screen, bounce it
         elif self.rect.bottom > screen.get_height():
             self.rect.bottom = screen.get_height()
             self.dy = self.dy * -1
         
+        # if the ball collides with a paddle, bounce it back
         collide_li = pygame.sprite.spritecollide(self, other_sprites, False)
         if collide_li:
             self.dx = self.dx * -1
@@ -59,11 +85,19 @@ class Paddle(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.centerx = x_pos
         self.rect.centery = y_pos
+        self.dy = 0
+        self.dir = "none"
+        self.score = 0
+
+    def reset(self):
+        self.rect.centerx = 64
+        self.rect.centery = 280
         self.dx = 0
         self.dy = 0
         self.dir = "none"
 
     def move_keydown(self, key):
+        """update the paddle while the key is held down"""
         if key == K_UP:
             self.dy = -16
             self.dir = "up"
@@ -72,6 +106,7 @@ class Paddle(pygame.sprite.Sprite):
             self.dir = "down"
 
     def move_keyup(self):
+        """once the key is release stop the paddle"""
         self.dy = 0
         self.dir = "none"
 
@@ -86,6 +121,12 @@ class AI_Paddle(Paddle):
     def __init__(self, x_pos=(640 - 64), y_pos=280, difficulty="easy"):
         Paddle.__init__(self, x_pos, y_pos)
         self.difficulty = difficulty
+
+    def reset(self):
+        self.rect.centerx = 640 - 64
+        self.rect.centery = 280
+        self.dy = 0
+        self.dir = "none"
 
     def update(self, ball_sprite):
         if self.difficulty == "easy":
@@ -144,21 +185,33 @@ class AI_Paddle(Paddle):
             self.rect.bottom = screen.get_height()
 
 def main():
+    # initialize pygame and the surfaces
     pygame.display.set_caption("Pypong - A pong remake in pygame")
     background = pygame.Surface(screen.get_size())
     background = background.convert()
     background.fill((0, 0, 0))
     screen.blit(background, (0, 0))
 
+    # assign neccessary variables for play
     player = Paddle()
     ball = Ball()
     villian = AI_Paddle()
+    score_label = Label(screen.get_width() // 2, 32, "")
+    player_label = Label(6, 12, "0")
+    enemy_label = Label(screen.get_width() - 6 , 12, "0")
+
+    # group the appropriate sprites
+    labelsprites = pygame.sprite.Group(score_label, player_label, enemy_label)    
     paddlesprites = pygame.sprite.Group(player, villian)
     ballsprites = pygame.sprite.Group(ball)
     enemysprites = pygame.sprite.Group(villian)
+
     clock = pygame.time.Clock()
     playing = True
+
+    # main loop
     while playing:
+        scored = False
         clock.tick(30)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -172,14 +225,49 @@ def main():
                 if event.key == K_UP or event.key == K_DOWN:
                     player.move_keyup()
 
+        # check for score
+        # do this bit more gracefully
+        if ball.rect.centerx < 0:
+            score_label.text = "Computer Score!"
+            villian.score += 1
+            enemy_label.text = str(villian.score)
+            labelsprites.clear(screen, background)
+            labelsprites.update()
+            labelsprites.draw(screen)
+            pygame.display.flip()
+            pygame.time.delay(640)
+            score_label.text = ""
+            ball.reset()
+            player.reset()
+            villian.reset()
+        if ball.rect.centerx > screen.get_width():
+            score_label.text = "Player Score!"
+            player.score += 1
+            player_label.text = str(player.score)
+            labelsprites.clear(screen, background)
+            labelsprites.update()
+            labelsprites.draw(screen)
+            pygame.display.flip()
+            pygame.time.delay(640)
+            score_label.text = ""
+            ball.reset()
+            player.reset()
+            villian.reset()            
+
+        # clear the sprites
         paddlesprites.clear(screen, background)
         ballsprites.clear(screen, background)
+        labelsprites.clear(screen, background)
 
+        # update all sprites
         paddlesprites.update(ball)
         ballsprites.update(paddlesprites)
+        labelsprites.update()
 
+        # draw all sprites
         paddlesprites.draw(screen)
         ballsprites.draw(screen)
+        labelsprites.draw(screen)
 
         pygame.display.flip()
 
