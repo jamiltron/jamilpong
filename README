@@ -1,0 +1,11 @@
+I decided to really learn pygame that I wanted to start very basic and
+develop from there. So right now that means pong. This isn't meant to be a 
+complete remake of pong, nor is it the best version out there. This simply
+exists to get more practice with pygame, so that both my knowledge of it as
+well as general game design improves.
+
+If you want to play this make sure you have python and pygame, and then just
+run jamilpong.py as you would any other python program.
+
+Thank you,
+Justin Hamilton
