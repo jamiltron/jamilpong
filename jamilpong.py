@@ -183,7 +183,7 @@ class AI_Paddle(Paddle):
             self.rect.top = 0
         elif self.rect.bottom > screen.get_height():
             self.rect.bottom = screen.get_height()
-
+    
 def main():
     # initialize pygame and the surfaces
     pygame.display.set_caption("Pypong - A pong remake in pygame")
@@ -221,6 +221,8 @@ def main():
                     playing = False
                 elif event.key == K_UP or event.key == K_DOWN:
                     player.move_keydown(event.key)
+                elif event.key == K_p:
+                    score_label.text = "Paused, press P to unpause"
             elif event.type == KEYUP:
                 if event.key == K_UP or event.key == K_DOWN:
                     player.move_keyup()
@@ -231,28 +233,14 @@ def main():
             score_label.text = "Computer Score!"
             villian.score += 1
             enemy_label.text = str(villian.score)
-            labelsprites.clear(screen, background)
-            labelsprites.update()
-            labelsprites.draw(screen)
-            pygame.display.flip()
-            pygame.time.delay(640)
-            score_label.text = ""
-            ball.reset()
-            player.reset()
-            villian.reset()
-        if ball.rect.centerx > screen.get_width():
+            if player.score >= 5:
+                score_label.text = "Computer wins!"
+        elif ball.rect.centerx > screen.get_width():
             score_label.text = "Player Score!"
             player.score += 1
             player_label.text = str(player.score)
-            labelsprites.clear(screen, background)
-            labelsprites.update()
-            labelsprites.draw(screen)
-            pygame.display.flip()
-            pygame.time.delay(640)
-            score_label.text = ""
-            ball.reset()
-            player.reset()
-            villian.reset()            
+            if player.score >= 5:
+                score_label.text = "Player wins!"
 
         # clear the sprites
         paddlesprites.clear(screen, background)
@@ -270,6 +258,25 @@ def main():
         labelsprites.draw(screen)
 
         pygame.display.flip()
-
+        
+        if score_label.text != "":
+            if score_label.text != "Paused, press P to unpause":
+                pygame.time.delay(640)
+                score_label.text = ""
+                ball.reset()
+                player.reset()
+                villian.reset()
+            else:
+                while score_label.text == "Paused, press P to unpause":
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            playing = False
+                            score_label.text = ""
+                        if event.type == KEYDOWN:
+                            if event.key == K_ESCAPE:
+                                playing = False
+                                score_label.text = ""
+                            elif event.key == K_p:
+                                score_label.text = ""
 if __name__ == '__main__':
     main()
