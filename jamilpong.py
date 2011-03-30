@@ -6,31 +6,35 @@ WIDTH = 640
 HEIGHT = 480
 BALL_W = 16
 BALL_H = 16
-BALL_CLR = (255, 255, 255)
 PADDLE_W = 16
 PADDLE_H = 96
-PADDLE_CLR = (255, 255, 255)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+FONT_SIZE = 30
+SPEED_START = 8
+SPEED_INCR = 1
+PADDLE_X_ADJ = 64
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
 class Label(pygame.sprite.Sprite):
-    def __init__(self, x_pos, y_pos, text=""):
+    def __init__(self, x_pos, y_pos, text="", font_size=FONT_SIZE):
         pygame.sprite.Sprite.__init__(self)
-        self.font = pygame.font.SysFont("None", 30)
+        self.font = pygame.font.SysFont("None", font_size)
         self.text = text
         self.center = (x_pos, y_pos)
 
     def update(self):
-        self.image = self.font.render(self.text, 1, (255, 255, 255))
+        self.image = self.font.render(self.text, 1, WHITE)
         self.rect = self.image.get_rect()
         self.rect.center = self.center
 
 class Ball(pygame.sprite.Sprite):
-    def __init__(self, x_pos=320, y_pos=240):
+    def __init__(self, x_pos=(WIDTH/2), y_pos=(HEIGHT/2)):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((BALL_W, BALL_H))
         self.image = self.image.convert()
-        self.image.fill(BALL_CLR)
+        self.image.fill(WHITE)
         self.rect = self.image.get_rect()
         self.rect.centerx = x_pos
         self.rect.centery = y_pos
@@ -39,9 +43,9 @@ class Ball(pygame.sprite.Sprite):
         self.dy = 0
 
     def reset(self):
-        self.rect.centerx = 320
-        self.rect.centery = 240
-        self.speed = 8
+        self.rect.centerx = WIDTH / 2
+        self.rect.centery = HEIGHT / 2
+        self.speed = SPEED_START
         self.dx = -self.speed
         self.dy = 0
 
@@ -74,115 +78,141 @@ class Ball(pygame.sprite.Sprite):
             elif collide_li[0].dir == "down":
                 self.dy = self.speed
             if self.speed < 24:
-                self.speed += 1
+                self.speed += SPEED_INCR
 
 class Paddle(pygame.sprite.Sprite):
-    def __init__(self, x_pos=64, y_pos=280):
+    def __init__(self, x_pos=PADDLE_X_ADJ, y_pos=(HEIGHT/2)):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((PADDLE_W, PADDLE_H))
         self.image = self.image.convert()
-        self.image.fill(PADDLE_CLR)
+        self.image.fill(WHITE)
         self.rect = self.image.get_rect()
+        self.orig_x = x_pos
+        self.orig_y = y_pos
         self.rect.centerx = x_pos
         self.rect.centery = y_pos
-        self.dy = 0
+        self.y = 0
+        self.dy = 16
         self.dir = "none"
         self.score = 0
 
     def reset(self):
-        self.rect.centerx = 64
-        self.rect.centery = 280
-        self.dx = 0
-        self.dy = 0
+        self.rect.centerx = self.orig_x 
+        self.rect.centery = self.orig_y
+        self.y = 0
         self.dir = "none"
 
     def move_keydown(self, key):
         """update the paddle while the key is held down"""
         if key == K_UP:
-            self.dy = -16
+            self.y = -self.dy
             self.dir = "up"
         elif key == K_DOWN:
-            self.dy = 16
+            self.y = self.dy
             self.dir = "down"
 
     def move_keyup(self):
         """once the key is release stop the paddle"""
-        self.dy = 0
+        self.y = 0
         self.dir = "none"
 
     def update(self, ball_sprite):
-        self.rect.centery += self.dy
+        self.rect.centery += self.y
         if self.rect.top < 0:
             self.rect.top = 0
         elif self.rect.bottom > screen.get_height():
             self.rect.bottom = screen.get_height()
 
 class AI_Paddle(Paddle):
-    def __init__(self, x_pos=(640 - 64), y_pos=280, difficulty="easy"):
+    def __init__(self, x_pos=(WIDTH - PADDLE_X_ADJ), y_pos=(HEIGHT/2), difficulty="easy"):
         Paddle.__init__(self, x_pos, y_pos)
         self.difficulty = difficulty
+        self.granularity = 8
 
     def reset(self):
-        self.rect.centerx = 640 - 64
-        self.rect.centery = 280
-        self.dy = 0
+        self.rect.centerx = self.orig_x
+        self.rect.centery = self.orig_y
+        self.y = 0
+        self.dy = 16
         self.dir = "none"
 
     def update(self, ball_sprite):
+        ball_x = ball_sprite.rect.centerx
+        ball_y = ball_sprite.rect.centery
+        ball_dir = ball_sprite.dx
+        three_fourth = 3 * WIDTH / 4
         if self.difficulty == "easy":
-            if ball_sprite.dx > 0 and ball_sprite.rect.centery < self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2:
-                self.dy = -8
+            if ball_dir > 0 and ball_y < self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2:
+                self.y = -self.dy / 2
                 self.dir = "up"
-            elif ball_sprite.dx > 0 and ball_sprite.rect.centery > self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2:
-                self.dy = 8
+            elif ball_dir > 0 and ball_y > self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2:
+                self.y = self.dy / 2
                 self.dir = "down"
             else:
-                self.dy = 0
+                self.y = 0
                 self.dir = "none"
         elif self.difficulty == "medium":
-            if ball_sprite.dx > 0 and ball_sprite.rect.centery < self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2 \
-                    and ball_sprite.rect.centerx < 3 * screen.get_width() // 4:
-                self.dy = -8
+            if ball_dir > 0 and ball_y < self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2 and ball_x < three_fourth:
+                self.y = -self.dy / 2
                 self.dir = "up"
-            elif ball_sprite.dx > 0 and ball_sprite.rect.centery < self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2 \
-                    and ball_sprite.rect.centerx >= (3 * screen.get_width() // 4):
-                self.dy = -16
+            elif ball_dir > 0 and ball_y < self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2 and ball_x >= three_fourth:
+                self.y = -self.dy
                 self.dir = "up"
-            elif ball_sprite.dx > 0 and ball_sprite.rect.centery > self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2 \
-                    and ball_sprite.rect.centerx < 3 * (screen.get_width() // 4):
-                self.dy = 8
+            elif ball_dir > 0 and ball_y > self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2 and ball_x < three_fourth:
+                self.y = self.dy / 2
                 self.dir = "down"
-            elif ball_sprite.dx > 0 and ball_sprite.rect.centery > self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2 \
-                    and ball_sprite.rect.centerx >= 3 * (screen.get_width() // 4):
-                self.dy = 16
+            elif ball_dir > 0 and ball_y > self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2 and ball_x >= three_fourth:
+                self.y = self.dy
                 self.dir = "down"
             else:
-                self.dy = 0
+                self.y = 0
                 self.dir = "none"
         if self.difficulty == "hard":
-            if ball_sprite.dx > 0 and ball_sprite.rect.centery < self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2:
-                self.dy = -16
+            if ball_dir > 0 and ball_y < self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2:
+                self.y = -self.dy
                 self.dir = "up"
-            elif ball_sprite.dx > 0 and ball_sprite.rect.centery > self.rect.centery - 8 \
-                    and ball_sprite.rect.centerx > screen.get_width() // 2:
-                self.dy = 16
+            elif ball_dir > 0 and ball_y > self.rect.centery - self.granularity \
+                    and ball_x > WIDTH / 2:
+                self.y = self.dy
                 self.dir = "down"
             else:
-                self.dy = 0
+                self.y = 0
                 self.dir = "none"
             
-        self.rect.centery += self.dy
+        self.rect.centery += self.y
         if self.rect.top < 0:
             self.rect.top = 0
         elif self.rect.bottom > screen.get_height():
             self.rect.bottom = screen.get_height()
+
+class Menu():
+    def __init__(self):
+        self.title_label = Label(WIDTH / 2, 32, "JAMILPONG", 42)
+        self.play_label = Label(WIDTH / 2, 98, "PLAY", 34)
+        self.easy_label = Label(WIDTH / 2 - 64, "", 28) 
+        self.medium_label = Label(WIDTH / 2, "", 28)
+        self.hard_label = Label(WIDTH / 2 + 64, "", 28)
+        self.exit_label = Label(WIDTH / 2, 124, "EXIT", 34)
+        self.arrow_label = Label(WIDTH / 2 - 64, 98, 34)
+        self.mode = "play/exit" 
+
+class Game():
+    def __init__(self):
+        pygame.display.set_caption("Jamilpong - A pong remake in pygame")
+        background = pygame.Surface(screen.get_size())
+        background = background.convert()
+        background.fill(BLACK)
+        screen.blit(background, (0, 0))
+
+    def handle_menu(self):
+        pass
     
 def main():
     # initialize pygame and the surfaces
